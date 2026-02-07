@@ -1,23 +1,31 @@
 const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium-min");
 
 async function checkLinks(links) {
+	const isVercel = process.env.VERCEL === "1";
 	const broken = [];
 	const uniqueLinks = [...new Set(links)].slice(0, 10);
 
 	const browser = await puppeteer.launch({
-		headless: "new",
-		args: [
-			"--no-sandbox",
-			"--disable-setuid-sandbox",
-			"--disable-blink-features=AutomationControlled",
-			"--window-size=1920,1080",
-		],
+		args: isVercel
+			? chromium.args
+			: [
+					"--no-sandbox",
+					"--disable-setuid-sandbox",
+					"--disable-blink-features=AutomationControlled",
+				],
+		defaultViewport: chromium.defaultViewport,
+		executablePath: isVercel
+			? await chromium.executablePath(
+					"https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.tar",
+				)
+			: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+		headless: isVercel ? chromium.headless : "new",
 	});
 
 	try {
 		const page = await browser.newPage();
 
-		// Emulate a real desktop browser
 		await page.setUserAgent(
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 		);
@@ -25,7 +33,9 @@ async function checkLinks(links) {
 		await page.setRequestInterception(true);
 		page.on("request", (req) => {
 			if (
-				["image", "stylesheet", "font", "media"].includes(req.resourceType())
+				["image", "stylesheet", "font", "media", "other"].includes(
+					req.resourceType(),
+				)
 			) {
 				req.abort();
 			} else {
@@ -35,20 +45,21 @@ async function checkLinks(links) {
 
 		for (const link of uniqueLinks) {
 			try {
-				await new Promise((r) => setTimeout(r, Math.random() * 1000 + 1000));
+				await new Promise((r) => setTimeout(r, isVercel ? 500 : 1000));
 
 				const response = await page.goto(link, {
 					waitUntil: "domcontentloaded",
-					timeout: 30000, // 30 seconds
+					timeout: 20000, // 20 seconds per link
 				});
 
-				const status = response.status();
-
-				if (status >= 400) {
-					broken.push({ url: link, status });
+				if (response) {
+					const status = response.status();
+					if (status >= 400) {
+						broken.push({ url: link, status });
+					}
 				}
 			} catch (err) {
-				console.error(`Timeout/Error on ${link}:`, err.message);
+				console.error(`Error on ${link}:`, err.message);
 				broken.push({ url: link, status: "timeout_or_blocked" });
 			}
 		}
