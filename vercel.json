@@ -1,8 +1,11 @@
 {
 	"version": 2,
-	"rewrites": [{ "source": "/api/(.*)", "destination": "/index.js" }],
+	"rewrites": [
+		{ "source": "/api/(.*)", "destination": "/server.js" },
+		{ "source": "/", "destination": "/server.js" }
+	],
 	"functions": {
-		"index.js": {
+		"server.js": {
 			"maxDuration": 60,
 			"memory": 1024
 		}
