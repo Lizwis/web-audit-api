@@ -21,7 +21,6 @@ module.exports = async function (fastify) {
 				})),
 			];
 
-			// Get all fixes in ONE API call
 			const aiFixes = await getBatchAiFixes(rawIssues);
 
 			const allIssues = rawIssues.map((issue, index) => ({
